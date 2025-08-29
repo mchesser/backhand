@@ -198,6 +198,16 @@ impl CompressionAction for DefaultCompressor {
                     })?;
                 out.truncate(out_size);
             }
+            #[cfg(feature = "xz")]
+            Compressor::Lzma => {
+                use liblzma::stream::{Stream, Action};
+
+                let mut decoder = Stream::new_lzma_decoder(0x1000_0000)
+                    .map_err(|e| BackhandError::UnsupportedCompression(format!("lzma decompressor {}", e)))?;
+                decoder
+                    .process_vec(bytes, out, Action::Finish)
+                    .map_err(|_| BackhandError::CorruptedOrInvalidSquashfs)?;
+            }
             _ => return Err(BackhandError::UnsupportedCompression(format!("{:?}", compressor))),
         }
         Ok(())
